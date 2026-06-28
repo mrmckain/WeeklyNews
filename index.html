@@ -478,16 +478,55 @@ function renderScheduleRows() {
   schedule.forEach((row, i) => {
     const div = document.createElement("div");
     div.className = "day-row" + (row.off ? " day-off" : "");
-    div.innerHTML = `
-      <div>
-        <div class="day-label">${row.day}</div>
-        <span class="off-toggle" onclick="toggleOff(${i})">${row.off ? "✓ mark on" : "mark off"}</span>
-      </div>
-      <input type="time" value="${row.start}" ${row.off?"disabled":""} oninput="schedule[${i}].start=this.value" placeholder="--:--">
-      <input type="time" value="${row.end}"   ${row.off?"disabled":""} oninput="schedule[${i}].end=this.value" placeholder="--:--">
-      <input type="text" value="${esc(row.activity)}" ${row.off?"disabled":""} oninput="schedule[${i}].activity=this.value" placeholder="${row.off ? "Day off" : "e.g. On campus — grant writing, office hours 2–4 PM"}">
-      <button class="clear-day" title="Clear" onclick="clearDay(${i})">×</button>
-    `;
+
+    // Day label + off toggle
+    const labelDiv = document.createElement("div");
+    const dayLabel = document.createElement("div");
+    dayLabel.className = "day-label";
+    dayLabel.textContent = row.day;
+    const offToggle = document.createElement("span");
+    offToggle.className = "off-toggle";
+    offToggle.textContent = row.off ? "mark on" : "mark off";
+    offToggle.addEventListener("click", () => toggleOff(i));
+    labelDiv.appendChild(dayLabel);
+    labelDiv.appendChild(offToggle);
+
+    // Start time
+    const startInput = document.createElement("input");
+    startInput.type = "time";
+    startInput.value = row.start;
+    startInput.disabled = row.off;
+    startInput.placeholder = "--:--";
+    startInput.addEventListener("input", () => { schedule[i].start = startInput.value; });
+
+    // End time
+    const endInput = document.createElement("input");
+    endInput.type = "time";
+    endInput.value = row.end;
+    endInput.disabled = row.off;
+    endInput.placeholder = "--:--";
+    endInput.addEventListener("input", () => { schedule[i].end = endInput.value; });
+
+    // Activity
+    const actInput = document.createElement("input");
+    actInput.type = "text";
+    actInput.value = row.activity;
+    actInput.disabled = row.off;
+    actInput.placeholder = row.off ? "Day off" : "e.g. On campus, grant writing, office hours 2-4 PM";
+    actInput.addEventListener("input", () => { schedule[i].activity = actInput.value; });
+
+    // Clear button
+    const clearBtn = document.createElement("button");
+    clearBtn.className = "clear-day";
+    clearBtn.title = "Clear";
+    clearBtn.textContent = "x";
+    clearBtn.addEventListener("click", () => clearDay(i));
+
+    div.appendChild(labelDiv);
+    div.appendChild(startInput);
+    div.appendChild(endInput);
+    div.appendChild(actInput);
+    div.appendChild(clearBtn);
     container.appendChild(div);
   });
 }
