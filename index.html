@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly News — McKain Research Group</title>
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<style>
+  :root {
+    /* McKain Research Group brand palette — matches LabChores */
+    --evergreen: #002400;
+    --forest: #273b09;
+    --olive: #58641d;
+    --palm: #7b904b;
+    --teal: #007A62;
+    --teal-light: #00C9A0;
+    --lavender: #dbd2e0;
+
+    /* Semantic tokens */
+    --green: var(--evergreen);
+    --green-mid: var(--forest);
+    --green-light: #f3f5ee;
+    --green-border: #c8d4a8;
+    --green-muted: #a8bc80;
+    --ink: #0d1a0d;
+    --muted: #4a5a3a;
+    --bg: #f0f2eb;
+    --card: #ffffff;
+    --radius: 7px;
+    --shadow: 0 2px 12px rgba(0,36,0,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; }
+
+  header {
+    background: var(--evergreen); padding: 0 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 56px; position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.2);
+  }
+  header .brand { display: flex; align-items: baseline; gap: 10px; }
+  header .brand .title { font-size: 15px; font-weight: bold; color: #fff; }
+  header .brand .sub { font-size: 12px; color: var(--green-muted); }
+  header .week-label { font-size: 12px; color: var(--green-muted); }
+
+  .tabs {
+    display: flex; background: #fff;
+    border-bottom: 2px solid var(--green-border); padding: 0 32px;
+  }
+  .tab {
+    padding: 14px 22px; font-size: 13px; font-weight: bold;
+    color: var(--muted); cursor: pointer;
+    border-bottom: 3px solid transparent; margin-bottom: -2px;
+    transition: color 0.15s, border-color 0.15s; user-select: none;
+  }
+  .tab:hover { color: var(--forest); }
+  .tab.active { color: var(--forest); border-bottom-color: var(--forest); }
+
+  main { max-width: 860px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  .status-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #fff; border: 1px solid #e4ece3; border-radius: var(--radius);
+    padding: 14px 20px; box-shadow: var(--shadow); margin-bottom: 22px;
+  }
+  .status-indicator { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+  .dot.pending { background: #f0a500; }
+  .dot.ready   { background: var(--forest); }
+  .dot.sent    { background: #888; }
+
+  .form-grid { display: flex; flex-direction: column; gap: 22px; }
+  .field-card {
+    background: var(--card); border: 1px solid #e4ece3;
+    border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+  }
+  .field-header {
+    background: var(--green-light); border-bottom: 1px solid var(--green-border);
+    padding: 12px 20px; display: flex; align-items: center; gap: 10px;
+  }
+  .field-icon { font-size: 16px; }
+  .field-title { font-size: 13px; font-weight: bold; color: var(--forest); letter-spacing: 0.3px; }
+  .field-hint { font-size: 11px; color: var(--muted); margin-left: auto; }
+  .field-body { padding: 16px 20px; }
+
+  /* ── SCHEDULE BUILDER ── */
+  .day-row {
+    display: grid;
+    grid-template-columns: 90px 110px 110px 1fr 32px;
+    gap: 8px; align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .day-row:last-child { border-bottom: none; }
+  .day-label { font-size: 13px; font-weight: bold; color: var(--forest); }
+  .day-row input[type="time"] {
+    border: 1px solid #d0d8cf; border-radius: 4px;
+    padding: 6px 8px; font-size: 13px; color: var(--ink);
+    width: 100%; background: #fff;
+  }
+  .day-row input[type="text"] {
+    border: 1px solid #d0d8cf; border-radius: 4px;
+    padding: 6px 10px; font-size: 13px; color: var(--ink);
+    width: 100%; background: #fff;
+  }
+  .day-row input[type="text"]::placeholder { color: #bbb; }
+  .day-row input:focus { outline: none; border-color: var(--teal); background: #fdfffe; }
+  .time-sep { font-size: 12px; color: var(--muted); text-align: center; }
+  .clear-day {
+    background: none; border: none; cursor: pointer;
+    color: #ccc; font-size: 16px; padding: 0; line-height: 1;
+    transition: color 0.15s;
+  }
+  .clear-day:hover { color: #c0392b; }
+  .day-row.day-off { opacity: 0.45; }
+  .day-row.day-off input { background: #f8f8f8; }
+  .off-toggle {
+    font-size: 11px; color: var(--olive); cursor: pointer;
+    user-select: none; text-decoration: underline dotted;
+    white-space: nowrap;
+  }
+
+  /* ── EVENTS BUILDER ── */
+  .event-row {
+    display: grid;
+    grid-template-columns: 150px 1fr 32px;
+    gap: 8px; align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .event-row:last-child { border-bottom: none; }
+  .event-row input[type="date"],
+  .event-row input[type="text"] {
+    border: 1px solid #d0d8cf; border-radius: 4px;
+    padding: 6px 10px; font-size: 13px; color: var(--ink);
+    width: 100%; background: #fff;
+  }
+  .event-row input:focus { outline: none; border-color: var(--teal); background: #fdfffe; }
+  .event-row input::placeholder { color: #bbb; }
+  .remove-event {
+    background: none; border: none; cursor: pointer;
+    color: #ccc; font-size: 16px; padding: 0; line-height: 1;
+    transition: color 0.15s;
+  }
+  .remove-event:hover { color: #c0392b; }
+  .add-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 12px; padding: 7px 14px;
+    background: var(--green-light); border: 1px solid var(--green-border);
+    border-radius: 5px; font-size: 13px; color: var(--forest);
+    font-weight: bold; cursor: pointer; transition: background 0.15s;
+  }
+  .add-btn:hover { background: #e0f0dc; }
+
+  /* ── PLAIN TEXTAREAS ── */
+  textarea {
+    display: block; width: 100%; border: none; outline: none;
+    resize: vertical; padding: 16px 20px;
+    font-family: Arial, sans-serif; font-size: 14px; line-height: 1.7;
+    color: var(--ink); background: #fff; min-height: 100px;
+  }
+  textarea::placeholder { color: #bbb; }
+  textarea:focus { background: #fdfffe; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 10px 22px; border-radius: 5px; border: none;
+    font-size: 14px; font-weight: bold; cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn:hover { opacity: 0.88; }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--forest); color: #fff; }
+  .btn-outline { background: #fff; color: var(--forest); border: 1.5px solid var(--forest); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-sm { padding: 8px 16px; font-size: 13px; }
+  .action-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 24px; }
+
+  /* ── PREVIEW ── */
+  #preview-frame {
+    background: #fff; border: 1px solid #e4ece3;
+    border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+  }
+  .preview-header { background: var(--evergreen); padding: 28px 40px 22px; }
+  .preview-eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--green-muted); margin-bottom: 6px; }
+  .preview-title { color: #fff; font-size: 24px; font-weight: bold; margin: 0; }
+  .preview-week { color: var(--green-muted); font-size: 13px; margin-top: 6px; }
+  .preview-body { padding: 32px 40px; }
+  .preview-section { margin-bottom: 28px; }
+  .preview-section-title {
+    font-size: 11px; font-weight: bold; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--forest);
+    border-bottom: 1px solid var(--green-border);
+    padding-bottom: 6px; margin-bottom: 12px;
+  }
+  .preview-section-content { font-size: 14px; line-height: 1.75; color: #333; white-space: pre-wrap; }
+  .preview-footer {
+    background: var(--green-light); border-top: 1px solid var(--green-border);
+    padding: 18px 40px; font-size: 12px; color: #777; text-align: center;
+  }
+  .preview-empty { color: #bbb; font-size: 14px; font-style: italic; }
+
+  .send-panel {
+    background: #fff; border: 1px solid #e4ece3; border-radius: var(--radius);
+    padding: 24px 28px; margin-top: 20px; box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+  }
+  .send-info { font-size: 14px; color: var(--muted); line-height: 1.6; }
+  .send-info strong { color: var(--ink); }
+  .send-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* ── PASSWORD MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 500;
+  }
+  .modal {
+    background: #fff; border-radius: var(--radius);
+    padding: 36px 40px; max-width: 380px; width: 90%;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+    text-align: center;
+  }
+  .modal h2 { font-size: 18px; color: var(--forest); margin-bottom: 8px; }
+  .modal p { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+  .modal input {
+    width: 100%; padding: 10px 14px; font-size: 15px;
+    border: 1.5px solid #d0d8cf; border-radius: 5px;
+    margin-bottom: 14px; text-align: center; letter-spacing: 2px;
+  }
+  .modal input:focus { outline: none; border-color: var(--teal); }
+  .modal .error-msg { color: #c0392b; font-size: 12px; margin-bottom: 10px; min-height: 16px; }
+
+  /* ── TOAST / LOADING ── */
+  #toast {
+    position: fixed; bottom: 28px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #1a1a1a; color: #fff; padding: 12px 24px;
+    border-radius: 6px; font-size: 14px; opacity: 0;
+    transition: opacity 0.25s, transform 0.25s;
+    z-index: 999; pointer-events: none; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.success { background: var(--forest); }
+  #toast.error { background: #c0392b; }
+
+  .loading-overlay {
+    position: fixed; inset: 0; background: rgba(255,255,255,0.75);
+    display: none; align-items: center; justify-content: center;
+    z-index: 200; font-size: 15px; color: var(--green);
+  }
+  .spinner {
+    width: 28px; height: 28px; border: 3px solid var(--green-border);
+    border-top-color: var(--teal); border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin-right: 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .col-headers {
+    display: grid;
+    grid-template-columns: 90px 110px 110px 1fr 32px;
+    gap: 8px; padding: 0 0 6px;
+    border-bottom: 1px solid var(--green-border);
+    margin-bottom: 4px;
+  }
+  .col-headers span { font-size: 11px; color: var(--muted); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .event-col-headers {
+    display: grid;
+    grid-template-columns: 150px 1fr 32px;
+    gap: 8px; padding: 0 0 6px;
+    border-bottom: 1px solid var(--green-border);
+    margin-bottom: 4px;
+  }
+  .event-col-headers span { font-size: 11px; color: var(--muted); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+
+<!-- PASSWORD MODAL -->
+<div class="modal-overlay" id="auth-modal">
+  <div class="modal">
+    <h2>🔒 McKain Research Group</h2>
+    <p>Enter the admin password to access the Weekly News editor.</p>
+    <input type="password" id="pw-input" placeholder="Password" onkeydown="if(event.key==='Enter')checkPassword()">
+    <div class="error-msg" id="pw-error"></div>
+    <button class="btn btn-primary" style="width:100%" onclick="checkPassword()">Enter</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <span id="loading-msg">Loading…</span>
+</div>
+<div id="toast"></div>
+
+<header>
+  <div class="brand">
+    <span class="title">McKain Research Group Weekly News</span>
+    <span class="sub">Admin</span>
+  </div>
+  <span class="week-label" id="header-week"></span>
+</header>
+
+<div class="tabs">
+  <div class="tab active" id="tab-form"    onclick="switchTab('form')">✏️ &nbsp;Fill In</div>
+  <div class="tab"        id="tab-preview" onclick="switchTab('preview')">👁 &nbsp;Preview</div>
+</div>
+
+<main>
+  <div class="status-bar">
+    <div class="status-indicator">
+      <div class="dot" id="status-dot"></div>
+      <span id="status-text">Loading draft…</span>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="saveDraft()">💾 Save draft</button>
+  </div>
+
+  <!-- FORM -->
+  <div id="view-form">
+    <div class="form-grid">
+
+      <!-- SCHEDULE -->
+      <div class="field-card">
+        <div class="field-header">
+          <span class="field-icon">📅</span>
+          <span class="field-title">MY SCHEDULE THIS WEEK</span>
+          <span class="field-hint">Times are optional</span>
+        </div>
+        <div class="field-body">
+          <div class="col-headers">
+            <span>Day</span>
+            <span>Start</span>
+            <span>End</span>
+            <span>What I'm doing</span>
+            <span></span>
+          </div>
+          <div id="schedule-rows"></div>
+        </div>
+      </div>
+
+      <!-- ANNOUNCEMENTS -->
+      <div class="field-card">
+        <div class="field-header">
+          <span class="field-icon">📢</span>
+          <span class="field-title">ANNOUNCEMENTS</span>
+          <span class="field-hint">News, updates, welcome/farewell</span>
+        </div>
+        <textarea id="f-announcements" placeholder="e.g. Welcome Yuliya back starting this week!&#10;PacBio Vega is now live in MHB 430."></textarea>
+      </div>
+
+      <!-- ACTION ITEMS -->
+      <div class="field-card">
+        <div class="field-header">
+          <span class="field-icon">✅</span>
+          <span class="field-title">ACTION ITEMS</span>
+          <span class="field-hint">Things the group needs to do this week</span>
+        </div>
+        <textarea id="f-action-items" placeholder="e.g. — Submit HPC job estimates to Michael by Wed&#10;— Check AI usage stats and send to Michael"></textarea>
+      </div>
+
+      <!-- UPCOMING EVENTS -->
+      <div class="field-card">
+        <div class="field-header">
+          <span class="field-icon">🗓️</span>
+          <span class="field-title">UPCOMING EVENTS</span>
+          <span class="field-hint">Talks, deadlines, travel, conferences</span>
+        </div>
+        <div class="field-body">
+          <div class="event-col-headers">
+            <span>Date</span>
+            <span>Description</span>
+            <span></span>
+          </div>
+          <div id="event-rows"></div>
+          <button class="add-btn" onclick="addEvent()">+ Add event</button>
+        </div>
+      </div>
+
+      <!-- REMINDERS -->
+      <div class="field-card">
+        <div class="field-header">
+          <span class="field-icon">🔔</span>
+          <span class="field-title">REMINDERS</span>
+          <span class="field-hint">Recurring or standing reminders</span>
+        </div>
+        <textarea id="f-reminders" placeholder="e.g. Announce large data transfers (>100 GB) in Slack before starting.&#10;Log all use of PacBio, LightBench, and Hamilton."></textarea>
+      </div>
+
+      <!-- AERI / HPC -->
+      <div class="field-card">
+        <div class="field-header">
+          <span class="field-icon">🖥️</span>
+          <span class="field-title">AERI / HPC NOTES</span>
+          <span class="field-hint">Leave blank if nothing this week</span>
+        </div>
+        <textarea id="f-aeri-hpc" placeholder="e.g. AERI: Silica-dried tissue transfer to cryo tubes ongoing.&#10;HPC: /grps2/mrmckain scratch at ~80%, clean up temp files."></textarea>
+      </div>
+
+    </div>
+    <div class="action-row">
+      <button class="btn btn-primary" onclick="switchTab('preview')">Preview newsletter →</button>
+      <button class="btn btn-outline" onclick="saveDraft()">💾 Save draft</button>
+    </div>
+  </div>
+
+  <!-- PREVIEW -->
+  <div id="view-preview" style="display:none;">
+    <div id="preview-frame">
+      <div class="preview-header">
+        <div class="preview-eyebrow">McKain Research Group</div>
+        <h1 class="preview-title">Weekly News</h1>
+        <div class="preview-week" id="preview-week-label"></div>
+      </div>
+      <div class="preview-body" id="preview-body"></div>
+      <div class="preview-footer">
+        McKain Research Group &nbsp;·&nbsp; Department of Biological Sciences, University of Alabama<br>
+        Questions? Drop a message in <strong>#lab-general</strong> on Slack.
+      </div>
+    </div>
+    <div class="send-panel">
+      <div class="send-info">
+        <strong>Ready to send?</strong><br>
+        Sends to all 11 lab members from <code>weeklynews@mckainlab.org</code>.
+      </div>
+      <div class="send-actions">
+        <button class="btn btn-outline" onclick="sendTest()">🧪 Send test to me</button>
+        <button class="btn btn-primary" id="send-btn" onclick="sendToLab()">📨 Send to lab</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────────────────
+const SUPABASE_URL = "https://ogyjdixkembagkbpulrq.supabase.co";
+const ANON_KEY     = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neWpkaXhrZW1iYWdrYnB1bHJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjYyNjMsImV4cCI6MjA5NzkwMjI2M30.8ct-PYCyMHJGB8TnMhNynnB75JJtSd6bb-w1KEtWDRg";
+const FN = name => `${SUPABASE_URL}/functions/v1/${name}`;
+
+// Auth header builder — includes password on every edge-function call
+const AUTH = (pw) => ({
+  "Content-Type": "application/json",
+  "Authorization": `Bearer ${ANON_KEY}`,
+  "x-admin-password": pw
+});
+
+// ── PASSWORD ─────────────────────────────────────────────────────────────────
+const PW_KEY = "wn_admin_pw";
+let adminPw = sessionStorage.getItem(PW_KEY) || "";
+
+function checkPassword() {
+  const val = document.getElementById("pw-input").value.trim();
+  if (!val) return;
+  // We'll verify by attempting to load the draft — if it 401s, password is wrong
+  adminPw = val;
+  document.getElementById("auth-modal").style.display = "none";
+  init();
+}
+
+function showAuthModal(msg) {
+  adminPw = "";
+  sessionStorage.removeItem(PW_KEY);
+  document.getElementById("pw-error").textContent = msg || "";
+  document.getElementById("pw-input").value = "";
+  document.getElementById("auth-modal").style.display = "flex";
+  setTimeout(() => document.getElementById("pw-input").focus(), 50);
+}
+
+// ── SCHEDULE STATE ────────────────────────────────────────────────────────────
+const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+let schedule = DAYS.map(d => ({ day: d, start: "", end: "", activity: "", off: false }));
+
+function renderScheduleRows() {
+  const container = document.getElementById("schedule-rows");
+  container.innerHTML = "";
+  schedule.forEach((row, i) => {
+    const div = document.createElement("div");
+    div.className = "day-row" + (row.off ? " day-off" : "");
+    div.innerHTML = `
+      <div>
+        <div class="day-label">${row.day}</div>
+        <span class="off-toggle" onclick="toggleOff(${i})">${row.off ? "✓ mark on" : "mark off"}</span>
+      </div>
+      <input type="time" value="${row.start}" ${row.off?"disabled":""} onchange="schedule[${i}].start=this.value" placeholder="--:--">
+      <input type="time" value="${row.end}"   ${row.off?"disabled":""} onchange="schedule[${i}].end=this.value" placeholder="--:--">
+      <input type="text" value="${esc(row.activity)}" ${row.off?"disabled":""} onchange="schedule[${i}].activity=this.value" placeholder="${row.off ? "Day off" : "e.g. On campus — grant writing, office hours 2–4 PM"}">
+      <button class="clear-day" title="Clear" onclick="clearDay(${i})">×</button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function toggleOff(i) {
+  schedule[i].off = !schedule[i].off;
+  if (schedule[i].off) { schedule[i].start=""; schedule[i].end=""; schedule[i].activity=""; }
+  renderScheduleRows();
+}
+
+function clearDay(i) {
+  schedule[i] = { day: DAYS[i], start:"", end:"", activity:"", off: false };
+  renderScheduleRows();
+}
+
+function scheduleToText() {
+  return schedule.map(r => {
+    if (r.off) return `${r.day}: Off`;
+    let parts = [];
+    if (r.start || r.end) {
+      parts.push(fmt12(r.start) + (r.end ? `–${fmt12(r.end)}` : ""));
+    }
+    if (r.activity) parts.push(r.activity);
+    return parts.length ? `${r.day}: ${parts.join(" — ")}` : "";
+  }).filter(Boolean).join("\n");
+}
+
+function fmt12(t) {
+  if (!t) return "";
+  const [h, m] = t.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 || 12;
+  return m === 0 ? `${hour} ${ampm}` : `${hour}:${String(m).padStart(2,"0")} ${ampm}`;
+}
+
+function scheduleFromText(text) {
+  if (!text) return;
+  const lines = text.split("\n");
+  lines.forEach(line => {
+    const match = line.match(/^(\w+):\s*(.*)$/);
+    if (!match) return;
+    const [, dayName, rest] = match;
+    const idx = DAYS.findIndex(d => d.toLowerCase().startsWith(dayName.toLowerCase()));
+    if (idx === -1) return;
+    if (rest.trim().toLowerCase() === "off") { schedule[idx].off = true; return; }
+    // Try to parse "HH:MM AM–HH:MM PM — activity" or just activity
+    const timeMatch = rest.match(/^(\d+(?::\d+)?\s*[AP]M)(?:–(\d+(?::\d+)?\s*[AP]M))?\s*(?:—\s*)?(.*)$/i);
+    if (timeMatch) {
+      schedule[idx].start = to24(timeMatch[1]);
+      schedule[idx].end   = to24(timeMatch[2] || "");
+      schedule[idx].activity = timeMatch[3] || "";
+    } else {
+      schedule[idx].activity = rest;
+    }
+  });
+}
+
+function to24(t) {
+  if (!t) return "";
+  const m = t.match(/(\d+)(?::(\d+))?\s*([AP]M)/i);
+  if (!m) return "";
+  let h = parseInt(m[1]);
+  const min = m[2] ? m[2] : "00";
+  const ap = m[3].toUpperCase();
+  if (ap === "AM" && h === 12) h = 0;
+  if (ap === "PM" && h !== 12) h += 12;
+  return `${String(h).padStart(2,"0")}:${min}`;
+}
+
+// ── EVENTS STATE ──────────────────────────────────────────────────────────────
+let events = [{ date: "", desc: "" }];
+
+function renderEventRows() {
+  const container = document.getElementById("event-rows");
+  container.innerHTML = "";
+  events.forEach((ev, i) => {
+    const div = document.createElement("div");
+    div.className = "event-row";
+    div.innerHTML = `
+      <input type="date" value="${ev.date}" onchange="events[${i}].date=this.value">
+      <input type="text"  value="${esc(ev.desc)}" placeholder="e.g. Botany 2026, Tucson AZ" onchange="events[${i}].desc=this.value">
+      <button class="remove-event" onclick="removeEvent(${i})" title="Remove">×</button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function addEvent() {
+  events.push({ date: "", desc: "" });
+  renderEventRows();
+  // Focus the new date input
+  const rows = document.querySelectorAll(".event-row");
+  const lastRow = rows[rows.length - 1];
+  if (lastRow) lastRow.querySelector("input").focus();
+}
+
+function removeEvent(i) {
+  events.splice(i, 1);
+  if (events.length === 0) events.push({ date: "", desc: "" });
+  renderEventRows();
+}
+
+function eventsToText() {
+  return events
+    .filter(e => e.date || e.desc)
+    .map(e => {
+      if (!e.date) return e.desc;
+      const d = new Date(e.date + "T00:00:00Z");
+      const label = d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+      return `${label}${e.desc ? " — " + e.desc : ""}`;
+    }).join("\n");
+}
+
+function eventsFromText(text) {
+  if (!text) return;
+  events = text.split("\n").filter(Boolean).map(line => {
+    const m = line.match(/^([A-Za-z]+ \d+,? \d{4})\s*(?:—\s*)?(.*)$/);
+    if (m) {
+      const d = new Date(m[1]);
+      const iso = isNaN(d) ? "" : d.toISOString().split("T")[0];
+      return { date: iso, desc: m[2] || "" };
+    }
+    return { date: "", desc: line };
+  });
+  if (events.length === 0) events = [{ date: "", desc: "" }];
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+let draftId = null, draftStatus = "pending", weekOf = null;
+
+async function init() {
+  showLoading("Loading your draft…");
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("draft");
+  const url = id ? `${FN("weekly-news-load")}?id=${id}` : FN("weekly-news-load");
+
+  let res;
+  try {
+    res = await fetch(url, { headers: AUTH(adminPw) });
+  } catch(e) {
+    hideLoading(); toast("Network error: " + e.message, "error"); return;
+  }
+
+  if (res.status === 401) {
+    hideLoading(); showAuthModal("Incorrect password — try again."); return;
+  }
+
+  const draft = await res.json();
+  hideLoading();
+  if (draft.error) { toast("Error: " + draft.error, "error"); return; }
+
+  // Password is good — save to session
+  sessionStorage.setItem(PW_KEY, adminPw);
+  document.getElementById("auth-modal").style.display = "none";
+
+  populateDraft(draft);
+}
+
+function populateDraft(draft) {
+  draftId     = draft.id;
+  draftStatus = draft.status;
+  weekOf      = draft.week_of;
+
+  const url = new URL(window.location);
+  url.searchParams.set("draft", draftId);
+  window.history.replaceState({}, "", url);
+
+  // Schedule
+  schedule = DAYS.map(d => ({ day: d, start: "", end: "", activity: "", off: false }));
+  if (draft.schedule) scheduleFromText(draft.schedule);
+  renderScheduleRows();
+
+  // Events
+  events = [{ date: "", desc: "" }];
+  if (draft.upcoming_events) eventsFromText(draft.upcoming_events);
+  renderEventRows();
+
+  // Plain textareas
+  document.getElementById("f-announcements").value = draft.announcements  || "";
+  document.getElementById("f-action-items").value  = draft.action_items   || "";
+  document.getElementById("f-reminders").value     = draft.reminders      || "";
+  document.getElementById("f-aeri-hpc").value      = draft.aeri_hpc_notes || "";
+
+  updateStatusBar();
+  document.getElementById("header-week").textContent = weekLabel(weekOf);
+}
+
+function weekLabel(w) {
+  if (!w) return "";
+  const mon = new Date(w + "T00:00:00Z");
+  const sun = new Date(mon); sun.setUTCDate(sun.getUTCDate() + 6);
+  const fmt = d => d.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "UTC" });
+  return `Week of ${fmt(mon)}–${fmt(sun)}`;
+}
+
+function updateStatusBar() {
+  document.getElementById("status-dot").className = "dot " + draftStatus;
+  document.getElementById("status-text").textContent =
+    ({ pending: "Draft — not yet saved", ready: "Draft saved", sent: "Sent ✓" })[draftStatus] || draftStatus;
+}
+
+// ── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById("tab-form").classList.toggle("active", tab === "form");
+  document.getElementById("tab-preview").classList.toggle("active", tab === "preview");
+  document.getElementById("view-form").style.display    = tab === "form"    ? "" : "none";
+  document.getElementById("view-preview").style.display = tab === "preview" ? "" : "none";
+  if (tab === "preview") renderPreview();
+}
+
+// ── PREVIEW ──────────────────────────────────────────────────────────────────
+function esc(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function renderPreview() {
+  document.getElementById("preview-week-label").textContent = weekLabel(weekOf);
+  const sections = [
+    { icon: "📅", label: "My Schedule This Week", text: scheduleToText() },
+    { icon: "📢", label: "Announcements",          text: document.getElementById("f-announcements").value.trim() },
+    { icon: "✅", label: "Action Items",            text: document.getElementById("f-action-items").value.trim() },
+    { icon: "🗓️", label: "Upcoming Events",        text: eventsToText() },
+    { icon: "🔔", label: "Reminders",              text: document.getElementById("f-reminders").value.trim() },
+    { icon: "🖥️", label: "AERI / HPC Notes",      text: document.getElementById("f-aeri-hpc").value.trim() },
+  ];
+  let html = ""; let hasContent = false;
+  for (const s of sections) {
+    if (!s.text) continue;
+    hasContent = true;
+    html += `<div class="preview-section">
+      <div class="preview-section-title">${s.icon} ${s.label}</div>
+      <div class="preview-section-content">${esc(s.text)}</div>
+    </div>`;
+  }
+  document.getElementById("preview-body").innerHTML =
+    hasContent ? html : '<p class="preview-empty">No content yet — fill in the form tab.</p>';
+
+  const btn = document.getElementById("send-btn");
+  if (draftStatus === "sent") { btn.disabled = true; btn.textContent = "✓ Already sent"; }
+  else { btn.disabled = false; btn.textContent = "📨 Send to lab"; }
+}
+
+// ── SAVE ─────────────────────────────────────────────────────────────────────
+async function saveDraft(silent = false) {
+  if (!draftId) { toast("No draft loaded", "error"); return; }
+  if (!silent) showLoading("Saving…");
+  const res = await fetch(FN("weekly-news-save"), {
+    method: "POST", headers: AUTH(adminPw),
+    body: JSON.stringify({
+      draftId,
+      fields: {
+        schedule:        scheduleToText(),
+        announcements:   document.getElementById("f-announcements").value,
+        action_items:    document.getElementById("f-action-items").value,
+        upcoming_events: eventsToText(),
+        reminders:       document.getElementById("f-reminders").value,
+        aeri_hpc_notes:  document.getElementById("f-aeri-hpc").value,
+      }
+    })
+  });
+  if (res.status === 401) { hideLoading(); showAuthModal("Session expired."); return; }
+  const data = await res.json();
+  if (!silent) hideLoading();
+  if (data.ok) {
+    draftStatus = "ready"; updateStatusBar();
+    if (!silent) toast("Draft saved ✓", "success");
+  } else {
+    toast("Save failed: " + data.error, "error");
+  }
+}
+
+// ── SEND ─────────────────────────────────────────────────────────────────────
+async function sendTest() {
+  await saveDraft();
+  showLoading("Sending test email to mrmckain@ua.edu…");
+  const res = await fetch(FN("weekly-news-send"), {
+    method: "POST", headers: AUTH(adminPw),
+    body: JSON.stringify({ draftId, testMode: true })
+  });
+  if (res.status === 401) { hideLoading(); showAuthModal("Session expired."); return; }
+  const data = await res.json();
+  hideLoading();
+  data.ok ? toast("Test email sent ✓", "success") : toast("Error: " + data.error, "error");
+}
+
+async function sendToLab() {
+  if (draftStatus === "sent") { toast("Already sent this week!", "error"); return; }
+  if (!confirm("Send this week's newsletter to all 11 lab members?")) return;
+  await saveDraft();
+  showLoading("Sending to lab…");
+  const res = await fetch(FN("weekly-news-send"), {
+    method: "POST", headers: AUTH(adminPw),
+    body: JSON.stringify({ draftId, testMode: false })
+  });
+  if (res.status === 401) { hideLoading(); showAuthModal("Session expired."); return; }
+  const data = await res.json();
+  hideLoading();
+  if (data.ok) {
+    draftStatus = "sent"; updateStatusBar();
+    document.getElementById("send-btn").disabled = true;
+    document.getElementById("send-btn").textContent = "✓ Sent";
+    toast("Newsletter sent to the lab! ✓", "success");
+  } else {
+    toast("Error: " + data.error, "error");
+  }
+}
+
+// ── UI HELPERS ───────────────────────────────────────────────────────────────
+function showLoading(msg) {
+  document.getElementById("loading-msg").textContent = msg;
+  document.getElementById("loading").style.display = "flex";
+}
+function hideLoading() { document.getElementById("loading").style.display = "none"; }
+
+let toastTimer;
+function toast(msg, type = "") {
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.className = "show " + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ""; }, 3200);
+}
+
+// Auto-save every 60s
+setInterval(() => { if (draftId && draftStatus !== "sent" && adminPw) saveDraft(true); }, 60000);
+
+// ── BOOT ─────────────────────────────────────────────────────────────────────
+if (adminPw) {
+  init();
+} else {
+  document.getElementById("auth-modal").style.display = "flex";
+  setTimeout(() => document.getElementById("pw-input").focus(), 100);
+}
+</script>
+</body>
+</html>
