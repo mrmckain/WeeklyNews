@@ -322,25 +322,6 @@
   <div id="view-form">
     <div class="form-grid">
 
-      <!-- SCHEDULE -->
-      <div class="field-card">
-        <div class="field-header">
-          <span class="field-icon">📅</span>
-          <span class="field-title">MY SCHEDULE THIS WEEK</span>
-          <span class="field-hint">Times are optional</span>
-        </div>
-        <div class="field-body">
-          <div class="col-headers">
-            <span>Day</span>
-            <span>Start</span>
-            <span>End</span>
-            <span>What I'm doing</span>
-            <span></span>
-          </div>
-          <div id="schedule-rows"></div>
-        </div>
-      </div>
-
       <!-- ANNOUNCEMENTS -->
       <div class="field-card">
         <div class="field-header">
@@ -376,6 +357,25 @@
           </div>
           <div id="event-rows"></div>
           <button class="add-btn" onclick="addEvent()">+ Add event</button>
+        </div>
+      </div>
+
+      <!-- SCHEDULE -->
+      <div class="field-card">
+        <div class="field-header">
+          <span class="field-icon">📅</span>
+          <span class="field-title">MY SCHEDULE THIS WEEK</span>
+          <span class="field-hint">Times are optional</span>
+        </div>
+        <div class="field-body">
+          <div class="col-headers">
+            <span>Day</span>
+            <span>Start</span>
+            <span>End</span>
+            <span>What I'm doing</span>
+            <span></span>
+          </div>
+          <div id="schedule-rows"></div>
         </div>
       </div>
 
@@ -483,9 +483,9 @@ function renderScheduleRows() {
         <div class="day-label">${row.day}</div>
         <span class="off-toggle" onclick="toggleOff(${i})">${row.off ? "✓ mark on" : "mark off"}</span>
       </div>
-      <input type="time" value="${row.start}" ${row.off?"disabled":""} onchange="schedule[${i}].start=this.value" placeholder="--:--">
-      <input type="time" value="${row.end}"   ${row.off?"disabled":""} onchange="schedule[${i}].end=this.value" placeholder="--:--">
-      <input type="text" value="${esc(row.activity)}" ${row.off?"disabled":""} onchange="schedule[${i}].activity=this.value" placeholder="${row.off ? "Day off" : "e.g. On campus — grant writing, office hours 2–4 PM"}">
+      <input type="time" value="${row.start}" ${row.off?"disabled":""} oninput="schedule[${i}].start=this.value" placeholder="--:--">
+      <input type="time" value="${row.end}"   ${row.off?"disabled":""} oninput="schedule[${i}].end=this.value" placeholder="--:--">
+      <input type="text" value="${esc(row.activity)}" ${row.off?"disabled":""} oninput="schedule[${i}].activity=this.value" placeholder="${row.off ? "Day off" : "e.g. On campus — grant writing, office hours 2–4 PM"}">
       <button class="clear-day" title="Clear" onclick="clearDay(${i})">×</button>
     `;
     container.appendChild(div);
@@ -567,8 +567,8 @@ function renderEventRows() {
     const div = document.createElement("div");
     div.className = "event-row";
     div.innerHTML = `
-      <input type="date" value="${ev.date}" onchange="events[${i}].date=this.value">
-      <input type="text"  value="${esc(ev.desc)}" placeholder="e.g. Botany 2026, Tucson AZ" onchange="events[${i}].desc=this.value">
+      <input type="date" value="${ev.date}" oninput="events[${i}].date=this.value">
+      <input type="text"  value="${esc(ev.desc)}" placeholder="e.g. Botany 2026, Tucson AZ" oninput="events[${i}].desc=this.value">
       <button class="remove-event" onclick="removeEvent(${i})" title="Remove">×</button>
     `;
     container.appendChild(div);
@@ -730,36 +730,46 @@ function renderPreview() {
 
 // ── SAVE ─────────────────────────────────────────────────────────────────────
 async function saveDraft(silent = false) {
-  if (!draftId) { toast("No draft loaded", "error"); return; }
+  if (!draftId) { toast("Draft not loaded yet — please wait and try again.", "error"); return false; }
   if (!silent) showLoading("Saving…");
-  const res = await fetch(FN("weekly-news-save"), {
-    method: "POST", headers: AUTH(adminPw),
-    body: JSON.stringify({
-      draftId,
-      fields: {
-        schedule:        scheduleToText(),
-        announcements:   document.getElementById("f-announcements").value,
-        action_items:    document.getElementById("f-action-items").value,
-        upcoming_events: eventsToText(),
-        reminders:       document.getElementById("f-reminders").value,
-        aeri_hpc_notes:  document.getElementById("f-aeri-hpc").value,
-      }
-    })
-  });
-  if (res.status === 401) { hideLoading(); showAuthModal("Session expired."); return; }
+  let res;
+  try {
+    res = await fetch(FN("weekly-news-save"), {
+      method: "POST", headers: AUTH(adminPw),
+      body: JSON.stringify({
+        draftId,
+        fields: {
+          schedule:        scheduleToText(),
+          announcements:   document.getElementById("f-announcements").value,
+          action_items:    document.getElementById("f-action-items").value,
+          upcoming_events: eventsToText(),
+          reminders:       document.getElementById("f-reminders").value,
+          aeri_hpc_notes:  document.getElementById("f-aeri-hpc").value,
+        }
+      })
+    });
+  } catch(e) {
+    if (!silent) hideLoading();
+    toast("Network error: " + e.message, "error");
+    return false;
+  }
+  if (res.status === 401) { hideLoading(); showAuthModal("Session expired."); return false; }
   const data = await res.json();
   if (!silent) hideLoading();
   if (data.ok) {
     draftStatus = "ready"; updateStatusBar();
     if (!silent) toast("Draft saved ✓", "success");
+    return true;
   } else {
     toast("Save failed: " + data.error, "error");
+    return false;
   }
 }
 
 // ── SEND ─────────────────────────────────────────────────────────────────────
 async function sendTest() {
-  await saveDraft();
+  const saved = await saveDraft();
+  if (!saved) return;
   showLoading("Sending test email to mrmckain@ua.edu…");
   const res = await fetch(FN("weekly-news-send"), {
     method: "POST", headers: AUTH(adminPw),
@@ -774,7 +784,8 @@ async function sendTest() {
 async function sendToLab() {
   if (draftStatus === "sent") { toast("Already sent this week!", "error"); return; }
   if (!confirm("Send this week's newsletter to all 11 lab members?")) return;
-  await saveDraft();
+  const saved = await saveDraft();
+  if (!saved) return;
   showLoading("Sending to lab…");
   const res = await fetch(FN("weekly-news-send"), {
     method: "POST", headers: AUTH(adminPw),
