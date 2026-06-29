@@ -618,7 +618,8 @@ function sortEventsText(text) {
   if (!text.trim()) return text;
   const lines = text.trim().split("\n");
   const dated = lines.map(line => {
-    const m = line.match(/^([A-Za-z]+ \d+,? \d{4})/);
+    const clean = line.replace(/\*\*/g, "");
+    const m = clean.match(/^([A-Za-z]+ \d+,? \d{4})/);
     if (m) {
       const d = new Date(m[1]);
       return { date: isNaN(d.getTime()) ? null : d, line };
