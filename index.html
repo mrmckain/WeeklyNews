@@ -460,8 +460,8 @@ function removeEvent(i) {
   renderEventRows();
 }
 
-function eventsToText() {
-  return events
+function eventsToText(sorted = false) {
+  let text = events
     .filter(e => e.date || e.desc)
     .map(e => {
       if (!e.date) return e.desc;
@@ -469,6 +469,7 @@ function eventsToText() {
       const label = d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
       return `${label}${e.desc ? " — " + e.desc : ""}`;
     }).join("\n");
+  return sorted ? sortEventsText(text) : text;
 }
 
 function eventsFromText(text) {
@@ -569,13 +570,40 @@ function switchTab(tab) {
 // ── PREVIEW ──────────────────────────────────────────────────────────────────
 function esc(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
+function renderText(text) {
+  // Escape HTML then convert **bold** to <strong>
+  return esc(text)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\n/g, "<br>");
+}
+
+function sortEventsText(text) {
+  if (!text.trim()) return text;
+  const lines = text.trim().split("\n");
+  const dated = lines.map(line => {
+    const m = line.match(/^([A-Za-z]+ \d+,? \d{4})/);
+    if (m) {
+      const d = new Date(m[1]);
+      return { date: isNaN(d.getTime()) ? null : d, line };
+    }
+    return { date: null, line };
+  });
+  dated.sort((a, b) => {
+    if (!a.date && !b.date) return 0;
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return a.date - b.date;
+  });
+  return dated.map(e => e.line).join("\n");
+}
+
 function renderPreview() {
   document.getElementById("preview-week-label").textContent = weekLabel(weekOf);
   const sections = [
-    { icon: "📅", label: "My Schedule This Week", text: scheduleToText() },
     { icon: "📢", label: "Announcements",          text: document.getElementById("f-announcements").value.trim() },
     { icon: "✅", label: "Action Items",            text: document.getElementById("f-action-items").value.trim() },
-    { icon: "🗓️", label: "Upcoming Events",        text: eventsToText() },
+    { icon: "🗓️", label: "Upcoming Events",        text: eventsToText(true) },
+    { icon: "📅", label: "My Schedule This Week",  text: scheduleToText() },
     { icon: "🔔", label: "Reminders",              text: document.getElementById("f-reminders").value.trim() },
     { icon: "🖥️", label: "AERI / HPC Notes",      text: document.getElementById("f-aeri-hpc").value.trim() },
   ];
@@ -585,7 +613,7 @@ function renderPreview() {
     hasContent = true;
     html += `<div class="preview-section">
       <div class="preview-section-title">${s.icon} ${s.label}</div>
-      <div class="preview-section-content">${esc(s.text)}</div>
+      <div class="preview-section-content">${renderText(s.text)}</div>
     </div>`;
   }
   document.getElementById("preview-body").innerHTML =
@@ -635,6 +663,28 @@ async function saveDraft(silent = false) {
 }
 
 // ── SEND ─────────────────────────────────────────────────────────────────────
+function getMonday8amUTC() {
+  // Returns ISO string for next/current Monday at 8 AM CT
+  // CDT = UTC-5 so 8 AM CDT = 13:00 UTC; CST = UTC-6 so 8 AM CST = 14:00 UTC
+  // We're in CDT (summer), so use 13:00 UTC
+  const now = new Date();
+  const day = now.getUTCDay();
+  const diff = day === 0 ? 1 : (8 - day) % 7 || 7;
+  // If today is Monday and it's before 13:00 UTC, send today; otherwise next Monday
+  let monday;
+  if (day === 1 && now.getUTCHours() < 13) {
+    monday = new Date(now);
+  } else if (day === 1) {
+    monday = new Date(now);
+    monday.setUTCDate(monday.getUTCDate() + 7);
+  } else {
+    monday = new Date(now);
+    monday.setUTCDate(monday.getUTCDate() + diff);
+  }
+  monday.setUTCHours(13, 0, 0, 0); // 8 AM CDT
+  return monday.toISOString();
+}
+
 async function sendTest() {
   const saved = await saveDraft();
   if (!saved) return;
@@ -651,13 +701,13 @@ async function sendTest() {
 
 async function sendToLab() {
   if (draftStatus === "sent") { toast("Already sent this week!", "error"); return; }
-  if (!confirm("Send this week's newsletter to all 11 lab members?")) return;
+  if (!confirm("Schedule newsletter to send Monday at 8 AM CT to all 11 lab members?")) return;
   const saved = await saveDraft();
   if (!saved) return;
   showLoading("Sending to lab…");
   const res = await fetch(FN("weekly-news-send"), {
     method: "POST", headers: AUTH(adminPw),
-    body: JSON.stringify({ draftId, testMode: false })
+    body: JSON.stringify({ draftId, testMode: false, scheduleAt: getMonday8amUTC() })
   });
   if (res.status === 401) { hideLoading(); showAuthModal("Session expired."); return; }
   const data = await res.json();
@@ -666,7 +716,7 @@ async function sendToLab() {
     draftStatus = "sent"; updateStatusBar();
     document.getElementById("send-btn").disabled = true;
     document.getElementById("send-btn").textContent = "✓ Sent";
-    toast("Newsletter sent to the lab! ✓", "success");
+    toast("Newsletter scheduled for Monday 8 AM CT ✓", "success");
   } else {
     toast("Error: " + data.error, "error");
   }
