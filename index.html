@@ -598,7 +598,7 @@ function renderPreview() {
 
 // ── SAVE ─────────────────────────────────────────────────────────────────────
 async function saveDraft(silent = false) {
-  if (!draftId) { toast("Draft not loaded yet — please wait and try again.", "error"); return false; }
+  if (!draftId) { if (!silent) toast("Draft not loaded yet — please wait and try again.", "error"); return false; }
   if (!silent) showLoading("Saving…");
   let res;
   try {
@@ -629,7 +629,7 @@ async function saveDraft(silent = false) {
     if (!silent) toast("Draft saved ✓", "success");
     return true;
   } else {
-    toast("Save failed: " + data.error, "error");
+    if (!silent) toast("Save failed: " + data.error, "error");
     return false;
   }
 }
