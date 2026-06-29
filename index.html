@@ -87,11 +87,12 @@
   /* ── EVENTS BUILDER ── */
   .event-row {
     display: grid;
-    grid-template-columns: 150px 1fr 32px;
-    gap: 8px; align-items: center;
+    grid-template-columns: 140px 20px 140px 1fr 32px;
+    gap: 6px; align-items: center;
     padding: 8px 0;
     border-bottom: 1px solid #f0f0f0;
   }
+  .event-date-sep { font-size: 12px; color: var(--muted); text-align: center; }
   .event-row:last-child { border-bottom: none; }
   .event-row input[type="date"],
   .event-row input[type="text"] {
@@ -306,7 +307,9 @@
         </div>
         <div class="field-body">
           <div class="event-col-headers">
-            <span>Date</span>
+            <span>Start date</span>
+            <span></span>
+            <span>End date <span style="font-weight:normal;color:#aaa">(optional)</span></span>
             <span>Description</span>
             <span></span>
           </div>
@@ -428,7 +431,7 @@ function scheduleToText() {
 
 
 // ── EVENTS STATE ──────────────────────────────────────────────────────────────
-let events = [{ date: "", desc: "" }];
+let events = [{ date: "", endDate: "", desc: "" }];
 
 function renderEventRows() {
   const container = document.getElementById("event-rows");
@@ -436,17 +439,38 @@ function renderEventRows() {
   events.forEach((ev, i) => {
     const div = document.createElement("div");
     div.className = "event-row";
-    div.innerHTML = `
-      <input type="date" value="${ev.date}" oninput="events[${i}].date=this.value">
-      <input type="text"  value="${esc(ev.desc)}" placeholder="e.g. Botany 2026, Tucson AZ" oninput="events[${i}].desc=this.value">
-      <button class="remove-event" onclick="removeEvent(${i})" title="Remove">×</button>
-    `;
+
+    const startInput = document.createElement("input");
+    startInput.type = "date"; startInput.value = ev.date;
+    startInput.addEventListener("input", () => { events[i].date = startInput.value; });
+
+    const sep = document.createElement("span");
+    sep.className = "event-date-sep"; sep.textContent = "–";
+
+    const endInput = document.createElement("input");
+    endInput.type = "date"; endInput.value = ev.endDate || "";
+    endInput.addEventListener("input", () => { events[i].endDate = endInput.value; });
+
+    const descInput = document.createElement("input");
+    descInput.type = "text"; descInput.value = ev.desc;
+    descInput.placeholder = "e.g. Botany 2026, Tucson AZ";
+    descInput.addEventListener("input", () => { events[i].desc = descInput.value; });
+
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "remove-event"; removeBtn.title = "Remove"; removeBtn.textContent = "×";
+    removeBtn.addEventListener("click", () => removeEvent(i));
+
+    div.appendChild(startInput);
+    div.appendChild(sep);
+    div.appendChild(endInput);
+    div.appendChild(descInput);
+    div.appendChild(removeBtn);
     container.appendChild(div);
   });
 }
 
 function addEvent() {
-  events.push({ date: "", desc: "" });
+  events.push({ date: "", endDate: "", desc: "" });
   renderEventRows();
   // Focus the new date input
   const rows = document.querySelectorAll(".event-row");
@@ -461,13 +485,15 @@ function removeEvent(i) {
 }
 
 function eventsToText(sorted = false) {
+  const fmt = d => new Date(d + "T00:00:00Z").toLocaleDateString("en-US",
+    { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
   let text = events
     .filter(e => e.date || e.desc)
     .map(e => {
       if (!e.date) return e.desc;
-      const d = new Date(e.date + "T00:00:00Z");
-      const label = d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
-      return `${label}${e.desc ? " — " + e.desc : ""}`;
+      let dateLabel = fmt(e.date);
+      if (e.endDate) dateLabel += " – " + fmt(e.endDate);
+      return `**${dateLabel}**${e.desc ? " — " + e.desc : ""}`;
     }).join("\n");
   return sorted ? sortEventsText(text) : text;
 }
@@ -475,15 +501,26 @@ function eventsToText(sorted = false) {
 function eventsFromText(text) {
   if (!text) return;
   events = text.split("\n").filter(Boolean).map(line => {
-    const m = line.match(/^([A-Za-z]+ \d+,? \d{4})\s*(?:—\s*)?(.*)$/);
-    if (m) {
-      const d = new Date(m[1]);
-      const iso = isNaN(d) ? "" : d.toISOString().split("T")[0];
-      return { date: iso, desc: m[2] || "" };
+    // Strip bold markers for parsing
+    const clean = line.replace(/\*\*/g, "");
+    // Match: "Month D, YYYY – Month D, YYYY — desc" or "Month D, YYYY — desc"
+    const rangeMatch = clean.match(/^([A-Za-z]+ \d+,? \d{4})\s*–\s*([A-Za-z]+ \d+,? \d{4})\s*(?:—\s*)?(.*)$/);
+    if (rangeMatch) {
+      const d1 = new Date(rangeMatch[1]), d2 = new Date(rangeMatch[2]);
+      return {
+        date:    isNaN(d1) ? "" : d1.toISOString().split("T")[0],
+        endDate: isNaN(d2) ? "" : d2.toISOString().split("T")[0],
+        desc:    rangeMatch[3] || ""
+      };
     }
-    return { date: "", desc: line };
+    const singleMatch = clean.match(/^([A-Za-z]+ \d+,? \d{4})\s*(?:—\s*)?(.*)$/);
+    if (singleMatch) {
+      const d = new Date(singleMatch[1]);
+      return { date: isNaN(d) ? "" : d.toISOString().split("T")[0], endDate: "", desc: singleMatch[2] || "" };
+    }
+    return { date: "", endDate: "", desc: line };
   });
-  if (events.length === 0) events = [{ date: "", desc: "" }];
+  if (events.length === 0) events = [{ date: "", endDate: "", desc: "" }];
 }
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
@@ -530,7 +567,7 @@ function populateDraft(draft) {
   document.getElementById("f-schedule").value = draft.schedule || "";
 
   // Events
-  events = [{ date: "", desc: "" }];
+  events = [{ date: "", endDate: "", desc: "" }];
   if (draft.upcoming_events) eventsFromText(draft.upcoming_events);
   renderEventRows();
 
