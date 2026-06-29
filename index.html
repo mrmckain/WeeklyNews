@@ -83,42 +83,6 @@
   .field-hint { font-size: 11px; color: var(--muted); margin-left: auto; }
   .field-body { padding: 16px 20px; }
 
-  /* ── SCHEDULE BUILDER ── */
-  .day-row {
-    display: grid;
-    grid-template-columns: 90px 110px 110px 1fr 32px;
-    gap: 8px; align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid #f0f0f0;
-  }
-  .day-row:last-child { border-bottom: none; }
-  .day-label { font-size: 13px; font-weight: bold; color: var(--forest); }
-  .day-row input[type="time"] {
-    border: 1px solid #d0d8cf; border-radius: 4px;
-    padding: 6px 8px; font-size: 13px; color: var(--ink);
-    width: 100%; background: #fff;
-  }
-  .day-row input[type="text"] {
-    border: 1px solid #d0d8cf; border-radius: 4px;
-    padding: 6px 10px; font-size: 13px; color: var(--ink);
-    width: 100%; background: #fff;
-  }
-  .day-row input[type="text"]::placeholder { color: #bbb; }
-  .day-row input:focus { outline: none; border-color: var(--teal); background: #fdfffe; }
-  .time-sep { font-size: 12px; color: var(--muted); text-align: center; }
-  .clear-day {
-    background: none; border: none; cursor: pointer;
-    color: #ccc; font-size: 16px; padding: 0; line-height: 1;
-    transition: color 0.15s;
-  }
-  .clear-day:hover { color: #c0392b; }
-  .day-row.day-off { opacity: 0.45; }
-  .day-row.day-off input { background: #f8f8f8; }
-  .off-toggle {
-    font-size: 11px; color: var(--olive); cursor: pointer;
-    user-select: none; text-decoration: underline dotted;
-    white-space: nowrap;
-  }
 
   /* ── EVENTS BUILDER ── */
   .event-row {
@@ -258,16 +222,7 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  .col-headers {
-    display: grid;
-    grid-template-columns: 90px 110px 110px 1fr 32px;
-    gap: 8px; padding: 0 0 6px;
-    border-bottom: 1px solid var(--green-border);
-    margin-bottom: 4px;
-  }
-  .col-headers span { font-size: 11px; color: var(--muted); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
-
-  .event-col-headers {
+.event-col-headers {
     display: grid;
     grid-template-columns: 150px 1fr 32px;
     gap: 8px; padding: 0 0 6px;
@@ -365,18 +320,9 @@
         <div class="field-header">
           <span class="field-icon">📅</span>
           <span class="field-title">MY SCHEDULE THIS WEEK</span>
-          <span class="field-hint">Times are optional</span>
+          <span class="field-hint">Pre-filled from Outlook — edit as needed</span>
         </div>
-        <div class="field-body">
-          <div class="col-headers">
-            <span>Day</span>
-            <span>Start</span>
-            <span>End</span>
-            <span>What I'm doing</span>
-            <span></span>
-          </div>
-          <div id="schedule-rows"></div>
-        </div>
+        <textarea id="f-schedule" placeholder="Monday: 9 AM–12 PM Grant writing, 2 PM–4 PM Office hours&#10;Tuesday: On campus all day&#10;Wednesday: Off campus — Botany conference&#10;Thursday: 10 AM CONSERVE all-hands&#10;Friday: WFH" style="min-height:160px;"></textarea>
       </div>
 
       <!-- REMINDERS -->
@@ -468,133 +414,18 @@ function showAuthModal(msg) {
   setTimeout(() => document.getElementById("pw-input").focus(), 50);
 }
 
-// ── SCHEDULE STATE ────────────────────────────────────────────────────────────
-const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
-let schedule = DAYS.map(d => ({ day: d, start: "", end: "", activity: "", off: false }));
-
-function renderScheduleRows() {
-  const container = document.getElementById("schedule-rows");
-  container.innerHTML = "";
-  schedule.forEach((row, i) => {
-    const div = document.createElement("div");
-    div.className = "day-row" + (row.off ? " day-off" : "");
-
-    // Day label + off toggle
-    const labelDiv = document.createElement("div");
-    const dayLabel = document.createElement("div");
-    dayLabel.className = "day-label";
-    dayLabel.textContent = row.day;
-    const offToggle = document.createElement("span");
-    offToggle.className = "off-toggle";
-    offToggle.textContent = row.off ? "mark on" : "mark off";
-    offToggle.addEventListener("click", () => toggleOff(i));
-    labelDiv.appendChild(dayLabel);
-    labelDiv.appendChild(offToggle);
-
-    // Start time
-    const startInput = document.createElement("input");
-    startInput.type = "time";
-    startInput.value = row.start;
-    startInput.disabled = row.off;
-    startInput.placeholder = "--:--";
-    startInput.addEventListener("input", () => { schedule[i].start = startInput.value; });
-
-    // End time
-    const endInput = document.createElement("input");
-    endInput.type = "time";
-    endInput.value = row.end;
-    endInput.disabled = row.off;
-    endInput.placeholder = "--:--";
-    endInput.addEventListener("input", () => { schedule[i].end = endInput.value; });
-
-    // Activity
-    const actInput = document.createElement("input");
-    actInput.type = "text";
-    actInput.value = row.activity;
-    actInput.disabled = row.off;
-    actInput.placeholder = row.off ? "Day off" : "e.g. On campus, grant writing, office hours 2-4 PM";
-    actInput.addEventListener("input", () => { schedule[i].activity = actInput.value; });
-
-    // Clear button
-    const clearBtn = document.createElement("button");
-    clearBtn.className = "clear-day";
-    clearBtn.title = "Clear";
-    clearBtn.textContent = "x";
-    clearBtn.addEventListener("click", () => clearDay(i));
-
-    div.appendChild(labelDiv);
-    div.appendChild(startInput);
-    div.appendChild(endInput);
-    div.appendChild(actInput);
-    div.appendChild(clearBtn);
-    container.appendChild(div);
-  });
-}
-
-function toggleOff(i) {
-  schedule[i].off = !schedule[i].off;
-  if (schedule[i].off) { schedule[i].start=""; schedule[i].end=""; schedule[i].activity=""; }
-  renderScheduleRows();
-}
-
-function clearDay(i) {
-  schedule[i] = { day: DAYS[i], start:"", end:"", activity:"", off: false };
-  renderScheduleRows();
-}
+// ── SCHEDULE ──────────────────────────────────────────────────────────────────
+// Schedule is now a plain textarea, pre-filled from Outlook via the edge function.
 
 function scheduleToText() {
-  return schedule.map(r => {
-    if (r.off) return `${r.day}: Off`;
-    let parts = [];
-    if (r.start || r.end) {
-      parts.push(fmt12(r.start) + (r.end ? `–${fmt12(r.end)}` : ""));
-    }
-    if (r.activity) parts.push(r.activity);
-    return parts.length ? `${r.day}: ${parts.join(" — ")}` : "";
-  }).filter(Boolean).join("\n");
+  return document.getElementById("f-schedule").value.trim();
 }
 
-function fmt12(t) {
-  if (!t) return "";
-  const [h, m] = t.split(":").map(Number);
-  const ampm = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 || 12;
-  return m === 0 ? `${hour} ${ampm}` : `${hour}:${String(m).padStart(2,"0")} ${ampm}`;
-}
 
-function scheduleFromText(text) {
-  if (!text) return;
-  const lines = text.split("\n");
-  lines.forEach(line => {
-    const match = line.match(/^(\w+):\s*(.*)$/);
-    if (!match) return;
-    const [, dayName, rest] = match;
-    const idx = DAYS.findIndex(d => d.toLowerCase().startsWith(dayName.toLowerCase()));
-    if (idx === -1) return;
-    if (rest.trim().toLowerCase() === "off") { schedule[idx].off = true; return; }
-    // Try to parse "HH:MM AM–HH:MM PM — activity" or just activity
-    const timeMatch = rest.match(/^(\d+(?::\d+)?\s*[AP]M)(?:–(\d+(?::\d+)?\s*[AP]M))?\s*(?:—\s*)?(.*)$/i);
-    if (timeMatch) {
-      schedule[idx].start = to24(timeMatch[1]);
-      schedule[idx].end   = to24(timeMatch[2] || "");
-      schedule[idx].activity = timeMatch[3] || "";
-    } else {
-      schedule[idx].activity = rest;
-    }
-  });
-}
 
-function to24(t) {
-  if (!t) return "";
-  const m = t.match(/(\d+)(?::(\d+))?\s*([AP]M)/i);
-  if (!m) return "";
-  let h = parseInt(m[1]);
-  const min = m[2] ? m[2] : "00";
-  const ap = m[3].toUpperCase();
-  if (ap === "AM" && h === 12) h = 0;
-  if (ap === "PM" && h !== 12) h += 12;
-  return `${String(h).padStart(2,"0")}:${min}`;
-}
+
+
+
 
 // ── EVENTS STATE ──────────────────────────────────────────────────────────────
 let events = [{ date: "", desc: "" }];
@@ -695,9 +526,7 @@ function populateDraft(draft) {
   window.history.replaceState({}, "", url);
 
   // Schedule
-  schedule = DAYS.map(d => ({ day: d, start: "", end: "", activity: "", off: false }));
-  if (draft.schedule) scheduleFromText(draft.schedule);
-  renderScheduleRows();
+  document.getElementById("f-schedule").value = draft.schedule || "";
 
   // Events
   events = [{ date: "", desc: "" }];
