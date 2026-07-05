@@ -348,6 +348,16 @@
         <textarea id="f-aeri-hpc" placeholder="e.g. AERI: Silica-dried tissue transfer to cryo tubes ongoing.&#10;HPC: /grps2/mrmckain scratch at ~80%, clean up temp files."></textarea>
       </div>
 
+      <!-- SNACKS -->
+      <div class="field-card">
+        <div class="field-header">
+          <span class="field-icon">🍎</span>
+          <span class="field-title">LAB SNACKS THIS WEEK</span>
+          <span class="field-hint">What's stocked in the lab</span>
+        </div>
+        <textarea id="f-snacks" placeholder="Fresh Fruit&#10;- Cherry Plums&#10;- Mandarin Oranges&#10;&#10;Nuts&#10;- Pistachios&#10;&#10;Coffee&#10;- Groundwork Organic Ethiopian (extras in Michael's office)" style="min-height:160px;"></textarea>
+      </div>
+
     </div>
     <div class="action-row">
       <button class="btn btn-primary" onclick="switchTab('preview')">Preview newsletter →</button>
@@ -576,6 +586,7 @@ function populateDraft(draft) {
   document.getElementById("f-action-items").value  = draft.action_items   || "";
   document.getElementById("f-reminders").value     = draft.reminders      || "";
   document.getElementById("f-aeri-hpc").value      = draft.aeri_hpc_notes || "";
+  document.getElementById("f-snacks").value         = draft.snacks          || "";
 
   updateStatusBar();
   document.getElementById("header-week").textContent = weekLabel(weekOf);
@@ -644,6 +655,7 @@ function renderPreview() {
     { icon: "📅", label: "My Schedule This Week",  text: scheduleToText() },
     { icon: "🔔", label: "Reminders",              text: document.getElementById("f-reminders").value.trim() },
     { icon: "🖥️", label: "AERI / HPC Notes",      text: document.getElementById("f-aeri-hpc").value.trim() },
+    { icon: "🍎", label: "Lab Snacks This Week",   text: document.getElementById("f-snacks").value.trim() },
   ];
   let html = ""; let hasContent = false;
   for (const s of sections) {
@@ -679,6 +691,7 @@ async function saveDraft(silent = false) {
           upcoming_events: eventsToText(),
           reminders:       document.getElementById("f-reminders").value,
           aeri_hpc_notes:  document.getElementById("f-aeri-hpc").value,
+        snacks:          document.getElementById("f-snacks").value,
         }
       })
     });
