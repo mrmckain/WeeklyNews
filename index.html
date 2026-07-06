@@ -619,8 +619,10 @@ function switchTab(tab) {
 function esc(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 function renderText(text) {
-  // Escape HTML then convert **bold** to <strong>
+  // Escape HTML, then convert markdown to HTML
+  // Order matters: links before bold to avoid escaping issues
   return esc(text)
+    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color:#007A62;">$1</a>')
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\n/g, "<br>");
 }
