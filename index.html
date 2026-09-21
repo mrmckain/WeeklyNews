@@ -160,10 +160,6 @@
     padding-bottom: 6px; margin-bottom: 12px;
   }
   .preview-section-content { font-size: 14px; line-height: 1.75; color: #333; white-space: pre-wrap; }
-  .preview-footer {
-    background: var(--green-light); border-top: 1px solid var(--green-border);
-    padding: 18px 40px; font-size: 12px; color: #777; text-align: center;
-  }
   .preview-empty { color: #bbb; font-size: 14px; font-style: italic; }
 
   .send-panel {
@@ -395,7 +391,9 @@
 <script>
 // ── CONFIG ───────────────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://ogyjdixkembagkbpulrq.supabase.co";
-const ANON_KEY     = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neWpkaXhrZW1iYWdrYnB1bHJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjYyNjMsImV4cCI6MjA5NzkwMjI2M30.8ct-PYCyMHJGB8TnMhNynnB75JJtSd6bb-w1KEtWDRg";
+// SECURITY: replace with the ROTATED anon key. The previous key was exposed and
+// should be rolled in Supabase (Settings → API), then pasted here.
+const ANON_KEY     = "sb_publishable_njJA2TMD6ykfnxMGghB6RA_f9Nbnqqy";
 const FN = name => `${SUPABASE_URL}/functions/v1/${name}`;
 
 // Auth header builder — includes password on every edge-function call
@@ -536,6 +534,14 @@ function eventsFromText(text) {
 // ── INIT ─────────────────────────────────────────────────────────────────────
 let draftId = null, draftStatus = "pending", weekOf = null;
 
+// SCHEDULE-BLANKING FIX: track whether the schedule textarea holds a real value.
+// The 60s autosave writes every field at once; without these guards it will save
+// an empty schedule over one the populate function wrote to the DB. We only send
+// the schedule field to the save endpoint when a schedule was loaded from the DB
+// or the user actually edited it.
+let scheduleLoaded = false;   // true once a non-empty schedule loads from the DB
+let scheduleEdited = false;   // true once the user types in the schedule field
+
 async function init() {
   showLoading("Loading your draft…");
   const params = new URLSearchParams(window.location.search);
@@ -573,8 +579,12 @@ function populateDraft(draft) {
   url.searchParams.set("draft", draftId);
   window.history.replaceState({}, "", url);
 
-  // Schedule
-  document.getElementById("f-schedule").value = draft.schedule || "";
+  // Schedule — record whether a real value came from the DB, and flag user edits.
+  const sched = draft.schedule || "";
+  document.getElementById("f-schedule").value = sched;
+  scheduleLoaded = !!sched.trim();
+  scheduleEdited = false;
+  document.getElementById("f-schedule").addEventListener("input", () => { scheduleEdited = true; });
 
   // Events
   events = [{ date: "", endDate: "", desc: "" }];
@@ -680,22 +690,28 @@ function renderPreview() {
 async function saveDraft(silent = false) {
   if (!draftId) { if (!silent) toast("Draft not loaded yet — please wait and try again.", "error"); return false; }
   if (!silent) showLoading("Saving…");
+
+  // Build the field payload. Schedule is included ONLY when it was loaded from the
+  // DB or the user edited it — otherwise the autosave would blank a schedule the
+  // populate function wrote. The save endpoint spreads whatever keys it receives,
+  // so an omitted key leaves that column untouched.
+  const fields = {
+    announcements:   document.getElementById("f-announcements").value,
+    action_items:    document.getElementById("f-action-items").value,
+    upcoming_events: eventsToText(),
+    reminders:       document.getElementById("f-reminders").value,
+    aeri_hpc_notes:  document.getElementById("f-aeri-hpc").value,
+    snacks:          document.getElementById("f-snacks").value,
+  };
+  if (scheduleLoaded || scheduleEdited) {
+    fields.schedule = scheduleToText();
+  }
+
   let res;
   try {
     res = await fetch(FN("weekly-news-save"), {
       method: "POST", headers: AUTH(adminPw),
-      body: JSON.stringify({
-        draftId,
-        fields: {
-          schedule:        scheduleToText(),
-          announcements:   document.getElementById("f-announcements").value,
-          action_items:    document.getElementById("f-action-items").value,
-          upcoming_events: eventsToText(),
-          reminders:       document.getElementById("f-reminders").value,
-          aeri_hpc_notes:  document.getElementById("f-aeri-hpc").value,
-        snacks:          document.getElementById("f-snacks").value,
-        }
-      })
+      body: JSON.stringify({ draftId, fields })
     });
   } catch(e) {
     if (!silent) hideLoading();
