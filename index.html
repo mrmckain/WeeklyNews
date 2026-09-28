@@ -378,7 +378,8 @@
     <div class="send-panel">
       <div class="send-info">
         <strong>Ready to send?</strong><br>
-        Sends to all 11 lab members from <code>weeklynews@mckainlab.org</code>.
+        Goes to all 11 lab members from <code>weeklynews@mckainlab.org</code>.<br>
+        If it's before <strong>Monday 8 AM CT</strong>, it schedules for then; otherwise it sends right away.
       </div>
       <div class="send-actions">
         <button class="btn btn-outline" onclick="sendTest()">🧪 Send test to me</button>
@@ -393,7 +394,7 @@
 const SUPABASE_URL = "https://ogyjdixkembagkbpulrq.supabase.co";
 // SECURITY: replace with the ROTATED anon key. The previous key was exposed and
 // should be rolled in Supabase (Settings → API), then pasted here.
-const ANON_KEY     = "sb_publishable_njJA2TMD6ykfnxMGghB6RA_f9Nbnqqy";
+const ANON_KEY     = "REPLACE_WITH_ROTATED_ANON_KEY";
 const FN = name => `${SUPABASE_URL}/functions/v1/${name}`;
 
 // Auth header builder — includes password on every edge-function call
@@ -732,26 +733,34 @@ async function saveDraft(silent = false) {
 }
 
 // ── SEND ─────────────────────────────────────────────────────────────────────
-function getMonday8amUTC() {
-  // Returns ISO string for next/current Monday at 8 AM CT
-  // CDT = UTC-5 so 8 AM CDT = 13:00 UTC; CST = UTC-6 so 8 AM CST = 14:00 UTC
-  // We're in CDT (summer), so use 13:00 UTC
-  const now = new Date();
-  const day = now.getUTCDay();
-  const diff = day === 0 ? 1 : (8 - day) % 7 || 7;
-  // If today is Monday and it's before 13:00 UTC, send today; otherwise next Monday
-  let monday;
-  if (day === 1 && now.getUTCHours() < 13) {
-    monday = new Date(now);
-  } else if (day === 1) {
-    monday = new Date(now);
-    monday.setUTCDate(monday.getUTCDate() + 7);
-  } else {
-    monday = new Date(now);
-    monday.setUTCDate(monday.getUTCDate() + diff);
-  }
-  monday.setUTCHours(13, 0, 0, 0); // 8 AM CDT
-  return monday.toISOString();
+// Returns the ISO string for THIS draft's Monday at 8 AM CT, or null if that
+// moment has already passed. The newsletter is anchored to the week it's FOR
+// (draft.week_of, which is the Monday of that week) — not "next Monday from now".
+//
+// Behavior: nothing sends until the user hits "Send to lab". At that point, if
+// the draft's Monday 8 AM is still in the future, we schedule for it; if it's
+// already passed, this returns null and the caller sends immediately.
+//
+// CDT (summer, Mar–Nov) = UTC-5, so 8 AM CT = 13:00 UTC.
+// CST (winter) = UTC-6, so 8 AM CT = 14:00 UTC.
+function getSendTimeUTC() {
+  if (!weekOf) return null; // no anchor — safest is to send now
+
+  // weekOf is "YYYY-MM-DD" for the Monday of the draft's week.
+  const y  = parseInt(weekOf.slice(0, 4));
+  const mo = parseInt(weekOf.slice(5, 7));
+  const d  = parseInt(weekOf.slice(8, 10));
+
+  // Determine CDT vs CST for that date (US rule: 2nd Sun Mar – 1st Sun Nov).
+  // Approximation matching the edge functions: CDT if month 4–10, or March on/after
+  // the 8th, or November before the 7th.
+  const isCDT = (mo > 3 && mo < 11) || (mo === 3 && d >= 8) || (mo === 11 && d < 7);
+  const utcHour = isCDT ? 13 : 14; // 8 AM CT in UTC
+
+  const sendAt = new Date(Date.UTC(y, mo - 1, d, utcHour, 0, 0));
+
+  // If that moment is still ahead, schedule for it; otherwise signal "send now".
+  return sendAt.getTime() > Date.now() ? sendAt.toISOString() : null;
 }
 
 async function sendTest() {
@@ -770,13 +779,36 @@ async function sendTest() {
 
 async function sendToLab() {
   if (draftStatus === "sent") { toast("Already sent this week!", "error"); return; }
-  if (!confirm("Schedule newsletter to send Monday at 8 AM CT to all 11 lab members?")) return;
+
+  // Decide up front: schedule for this draft's Monday 8 AM, or send immediately
+  // if that moment has already passed.
+  const sendAt = getSendTimeUTC();   // ISO string = schedule; null = send now
+
+  let confirmMsg;
+  if (sendAt) {
+    const label = new Date(sendAt).toLocaleString("en-US", {
+      weekday: "long", month: "long", day: "numeric",
+      hour: "numeric", minute: "2-digit",
+      timeZone: "America/Chicago", timeZoneName: "short"
+    });
+    confirmMsg = `Schedule the newsletter to send ${label} to all 11 lab members?`;
+  } else {
+    confirmMsg = "Send the newsletter to all 11 lab members NOW?";
+  }
+  if (!confirm(confirmMsg)) return;
+
   const saved = await saveDraft();
   if (!saved) return;
-  showLoading("Sending to lab…");
+
+  showLoading(sendAt ? "Scheduling…" : "Sending to lab now…");
+
+  // Only include scheduleAt when we're actually scheduling; omit it to send now.
+  const body = { draftId, testMode: false };
+  if (sendAt) body.scheduleAt = sendAt;
+
   const res = await fetch(FN("weekly-news-send"), {
     method: "POST", headers: AUTH(adminPw),
-    body: JSON.stringify({ draftId, testMode: false, scheduleAt: getMonday8amUTC() })
+    body: JSON.stringify(body)
   });
   if (res.status === 401) { hideLoading(); showAuthModal("Session expired."); return; }
   const data = await res.json();
@@ -785,7 +817,15 @@ async function sendToLab() {
     draftStatus = "sent"; updateStatusBar();
     document.getElementById("send-btn").disabled = true;
     document.getElementById("send-btn").textContent = "✓ Sent";
-    toast("Newsletter scheduled for Monday 8 AM CT ✓", "success");
+    if (sendAt) {
+      const label = new Date(sendAt).toLocaleString("en-US", {
+        weekday: "long", hour: "numeric", minute: "2-digit",
+        timeZone: "America/Chicago", timeZoneName: "short"
+      });
+      toast(`Newsletter scheduled for ${label} ✓`, "success");
+    } else {
+      toast("Newsletter sent to lab ✓", "success");
+    }
   } else {
     toast("Error: " + data.error, "error");
   }
