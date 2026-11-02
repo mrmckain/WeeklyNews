@@ -378,7 +378,7 @@
     <div class="send-panel">
       <div class="send-info">
         <strong>Ready to send?</strong><br>
-        Goes to all 11 lab members from <code>weeklynews@mckainlab.org</code>.<br>
+        Goes to everyone on the newsletter list (lab roster) from <code>weeklynews@mckainlab.org</code>.<br>
         If it's before <strong>Monday 8 AM CT</strong>, it schedules for then; otherwise it sends right away.
       </div>
       <div class="send-actions">
@@ -820,9 +820,9 @@ async function sendToLab() {
       hour: "numeric", minute: "2-digit",
       timeZone: "America/Chicago", timeZoneName: "short"
     });
-    confirmMsg = `Schedule the newsletter to send ${label} to all 11 lab members?`;
+    confirmMsg = `Schedule the newsletter to send ${label} to everyone on the newsletter list?`;
   } else {
-    confirmMsg = "Send the newsletter to all 11 lab members NOW?";
+    confirmMsg = "Send the newsletter to everyone on the newsletter list NOW?";
   }
   if (!confirm(confirmMsg)) return;
 
