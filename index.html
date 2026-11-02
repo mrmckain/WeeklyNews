@@ -628,13 +628,41 @@ function switchTab(tab) {
 // ── PREVIEW ──────────────────────────────────────────────────────────────────
 function esc(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
-function renderText(text) {
-  // Escape HTML, then convert markdown to HTML
-  // Order matters: links before bold to avoid escaping issues
-  return esc(text)
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color:#007A62;">$1</a>')
+// Newsletter text → HTML. Blank lines separate paragraphs, "- " lines become bullet lists,
+// and the schedule / events sections are laid out as lists (day names bold in the schedule).
+// Same logic as renderBlock() in the weekly-news-send function — keep the two in step.
+const NL_DAY = /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday):\s*(.*)$/;
+function nlEsc(s) { return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function nlInline(s) {
+  return nlEsc(s)
+    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color:#007A62;text-decoration:none;">$1</a>')
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\n/g, "<br>");
+    .replace(/`([^`]+)`/g, '<code style="font-family:Menlo,Consolas,monospace;font-size:13px;background:#f1f3ec;padding:1px 4px;border-radius:3px;">$1</code>');
+}
+function renderBlock(text, kind = "") {
+  const out = [];
+  let list = [];
+  const flush = () => {
+    if (list.length) out.push('<ul style="margin:2px 0 12px;padding-left:22px;">' + list.map(i => `<li style="margin:3px 0;">${i}</li>`).join("") + "</ul>");
+    list = [];
+  };
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    if (!line) { flush(); continue; }
+    let m;
+    if (kind === "schedule" && (m = line.match(NL_DAY))) {
+      flush();
+      out.push(`<div style="margin:10px 0 2px;font-weight:bold;color:#273b09;">${m[1]}</div>`);
+      if (m[2]) list.push(nlInline(m[2].replace(/--/g, " – ")));
+      continue;
+    }
+    if (kind === "schedule" || kind === "events") { list.push(nlInline(line.replace(/^[-•]\s+/, "").replace(/--/g, " – "))); continue; }
+    if ((m = line.match(/^[-•*]\s+(.*)$/))) { list.push(nlInline(m[1])); continue; }
+    flush();
+    out.push(`<p style="margin:0 0 10px;">${nlInline(line)}</p>`);
+  }
+  flush();
+  return out.join("");
 }
 
 function sortEventsText(text) {
@@ -663,8 +691,8 @@ function renderPreview() {
   const sections = [
     { icon: "📢", label: "Announcements",          text: document.getElementById("f-announcements").value.trim() },
     { icon: "✅", label: "Action Items",            text: document.getElementById("f-action-items").value.trim() },
-    { icon: "🗓️", label: "Upcoming Events",        text: eventsToText(true) },
-    { icon: "📅", label: "My Schedule This Week",  text: scheduleToText() },
+    { icon: "🗓️", label: "Upcoming Events",        text: eventsToText(true), kind: "events" },
+    { icon: "📅", label: "My Schedule This Week",  text: scheduleToText(), kind: "schedule" },
     { icon: "🔔", label: "Reminders",              text: document.getElementById("f-reminders").value.trim() },
     { icon: "🖥️", label: "HPC Notes",             text: document.getElementById("f-aeri-hpc").value.trim() },
     { icon: "🍎", label: "Lab Snacks This Week",   text: document.getElementById("f-snacks").value.trim() },
@@ -675,7 +703,7 @@ function renderPreview() {
     hasContent = true;
     html += `<div class="preview-section">
       <div class="preview-section-title">${s.icon} ${s.label}</div>
-      <div class="preview-section-content">${renderText(s.text)}</div>
+      <div class="preview-section-content">${renderBlock(s.text, s.kind)}</div>
     </div>`;
   }
   document.getElementById("preview-body").innerHTML =
