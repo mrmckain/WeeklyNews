@@ -392,9 +392,8 @@
 <script>
 // ── CONFIG ───────────────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://ogyjdixkembagkbpulrq.supabase.co";
-// SECURITY: replace with the ROTATED anon key. The previous key was exposed and
-// should be rolled in Supabase (Settings → API), then pasted here.
-const ANON_KEY     = "REPLACE_WITH_ROTATED_ANON_KEY";
+// Public (publishable) key — safe in the page; the functions check the admin password.
+const ANON_KEY     = "sb_publishable_njJA2TMD6ykfnxMGghB6RA_f9Nbnqqy";
 const FN = name => `${SUPABASE_URL}/functions/v1/${name}`;
 
 // Auth header builder — includes password on every edge-function call
