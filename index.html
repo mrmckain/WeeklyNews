@@ -659,6 +659,8 @@ function renderBlock(text, kind = "") {
     if (kind === "schedule" || kind === "events") { list.push(nlInline(line.replace(/^[-•]\s+/, "").replace(/--/g, " – "))); continue; }
     if ((m = line.match(/^[-•*]\s+(.*)$/))) { list.push(nlInline(m[1])); continue; }
     flush();
+    // Snacks: every line that isn't an item is a group heading ("Fresh Fruit", "Coffee")
+    if (kind === "snacks") { out.push(`<div style="margin:8px 0 2px;font-weight:bold;color:#273b09;">${nlInline(line.replace(/\*\*/g, ""))}</div>`); continue; }
     out.push(`<p style="margin:0 0 10px;">${nlInline(line)}</p>`);
   }
   flush();
@@ -695,7 +697,7 @@ function renderPreview() {
     { icon: "📅", label: "My Schedule This Week",  text: scheduleToText(), kind: "schedule" },
     { icon: "🔔", label: "Reminders",              text: document.getElementById("f-reminders").value.trim() },
     { icon: "🖥️", label: "HPC Notes",             text: document.getElementById("f-aeri-hpc").value.trim() },
-    { icon: "🍎", label: "Lab Snacks This Week",   text: document.getElementById("f-snacks").value.trim() },
+    { icon: "🍎", label: "Lab Snacks This Week",   text: document.getElementById("f-snacks").value.trim(), kind: "snacks" },
   ];
   let html = ""; let hasContent = false;
   for (const s of sections) {
