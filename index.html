@@ -334,14 +334,14 @@
         <textarea id="f-reminders" placeholder="e.g. Announce large data transfers (>100 GB) in Slack before starting.&#10;Log all use of PacBio, LightBench, and Hamilton."></textarea>
       </div>
 
-      <!-- AERI / HPC -->
+      <!-- HPC -->
       <div class="field-card">
         <div class="field-header">
           <span class="field-icon">🖥️</span>
-          <span class="field-title">AERI / HPC NOTES</span>
+          <span class="field-title">HPC NOTES</span>
           <span class="field-hint">Leave blank if nothing this week</span>
         </div>
-        <textarea id="f-aeri-hpc" placeholder="e.g. AERI: Silica-dried tissue transfer to cryo tubes ongoing.&#10;HPC: /grps2/mrmckain scratch at ~80%, clean up temp files."></textarea>
+        <textarea id="f-aeri-hpc" placeholder="e.g. /grps2/mrmckain scratch at ~80%, clean up temp files."></textarea>
       </div>
 
       <!-- SNACKS -->
@@ -666,7 +666,7 @@ function renderPreview() {
     { icon: "🗓️", label: "Upcoming Events",        text: eventsToText(true) },
     { icon: "📅", label: "My Schedule This Week",  text: scheduleToText() },
     { icon: "🔔", label: "Reminders",              text: document.getElementById("f-reminders").value.trim() },
-    { icon: "🖥️", label: "AERI / HPC Notes",      text: document.getElementById("f-aeri-hpc").value.trim() },
+    { icon: "🖥️", label: "HPC Notes",             text: document.getElementById("f-aeri-hpc").value.trim() },
     { icon: "🍎", label: "Lab Snacks This Week",   text: document.getElementById("f-snacks").value.trim() },
   ];
   let html = ""; let hasContent = false;
